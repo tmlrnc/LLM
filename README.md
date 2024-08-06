@@ -48,7 +48,3 @@ To get started with the Schoolclosure Databricks Pipeline, follow these steps:
 2. Obtain necessary keys and populate in databricks secrets.
 3. Create all tables in Databricks database.
 4. Populate `schools` and `districts` tables using data from NCES.
-
-## Contact Us
-
-If you have any questions, contact the Tech R&D Lab at [techlab@cdc.gov](mailto:techlab@cdc.gov)
