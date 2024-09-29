@@ -1,4 +1,4 @@
-
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,8 +6,26 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from transformers import pipeline
 from langchain.chains import RetrievalQA
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.llms import HuggingFaceHub  # For HuggingFace integration with LangChain
+
+# Ensure the API token is loaded from environment variables or set directly
+huggingfacehub_api_token = "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"
+
+if huggingfacehub_api_token is None:
+    raise ValueError("Please set the HUGGINGFACEHUB_API_TOKEN environment variable")
 
 # Part I: LSTM Model for Health Risk Prediction
+
+# Initialize HuggingFace LLM via HuggingFaceHub
+llm = HuggingFaceHub(
+    repo_id="gpt2", 
+    model_kwargs={"temperature": 0.7, "max_length": 100}, 
+    huggingfacehub_api_token=huggingfacehub_api_token  # Ensure API token is passed
+)
 
 # Sample wearable data (heart rate, glucose levels, activity)
 data = np.array([[72, 130, 5], [85, 200, 2], [60, 95, 10], [90, 210, 1], [70, 105, 6]])
@@ -63,24 +81,34 @@ print(f"Predicted health risk: {prediction.item()}")
 # Simulate a user symptom input for GPT-based advice generation
 user_symptom = "I feel dizzy and my glucose levels are high."
 
-# Pre-trained GPT model for conversational AI
-qa_pipeline = pipeline("question-answering")
+# Use HuggingFace for embeddings (FAISS retriever needs vector embeddings)
+embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-# Medical knowledge base (for demonstration)
-medical_docs = """
-Dizziness can be caused by various factors including high glucose levels.
-It is important to monitor glucose levels regularly to avoid complications.
-"""
+# Load your documents (you can load your medical documents here)
+loader = TextLoader(file_path="/Users/thomaslorenc/Sites/eyes/data-scripts-main/data-pull/src/myenv/cyber/zml/hcp.txt")
+documents = loader.load()
 
-# Use GPT model to generate advice based on symptoms
-result = qa_pipeline(question=user_symptom, context=medical_docs)
-print(f"GPT-based Advice: {result['answer']}")
+# Split documents into manageable chunks for indexing
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+docs = text_splitter.split_documents(documents)
 
-# LangChain-based Retrieval with GPT Integration for dynamic document retrieval
-retrieval_chain = RetrievalQA(model=qa_pipeline, documents=[medical_docs])
-print(retrieval_chain.run(user_symptom))
+# Use FAISS to create an in-memory vector store of the documents
+faiss_store = FAISS.from_documents(docs, embedding_model)
+
+# Use FAISS for document retrieval and integrate with HuggingFaceHub LLM
+retrieval_chain = RetrievalQA.from_chain_type(
+    llm=llm, retriever=faiss_store.as_retriever()
+)
+
+# Perform question-answering with document retrieval
+response = retrieval_chain.run(user_symptom)
+print(f"RAG-based retrieval response: {response}")
+
 
 # Part III: File-Based Query Retrieval using RAG (HR Document Example)
+
+# Define qa_pipeline using the Hugging Face `pipeline` function
+qa_pipeline = pipeline("question-answering")
 
 # Load pre-trained model for question-answering
 def fetch_top_3_paragraphs_from_file(file_path, query):
@@ -103,11 +131,21 @@ def fetch_top_3_paragraphs_from_file(file_path, query):
     return [para for para, score in results[:3]]
 
 # Example usage with the provided HR document
-file_path = "HR_Policy_Doc.txt"  # Path to the HR policy document
+file_path = "/Users/thomaslorenc/Sites/eyes/data-scripts-main/data-pull/src/myenv/cyber/zml/hcp.txt"  # Path to the HR policy document
+
+print('##################################################')
+print('Zoom My Life ')
+print('QUESTION: What is the procedure for sexual harassment?')
+
 query = "What is the procedure for sexual harassment?"
+
+print('ANSWER: Top 3 Paragraphs')
 
 top_3_paragraphs = fetch_top_3_paragraphs_from_file(file_path, query)
 for i, para in enumerate(top_3_paragraphs, 1):
+    print('##################################################')
+
     print(f"Paragraph {i}:\n{para}\n")
 
-# Integration for Health Assistant: This process can be adapted to retrieve medical documents or EHRs and provide advice.
+
+print('##################################################')
