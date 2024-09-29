@@ -130,6 +130,7 @@ def fetch_top_3_paragraphs_from_file(file_path, query):
     results = sorted(results, key=lambda x: x[1], reverse=True)
     return [para for para, score in results[:3]]
 
+
 # Example usage with the provided HR document
 file_path = "/Users/thomaslorenc/Sites/eyes/data-scripts-main/data-pull/src/myenv/cyber/zml/hcp.txt"  # Path to the HR policy document
 
@@ -149,3 +150,4 @@ for i, para in enumerate(top_3_paragraphs, 1):
 
 
 print('##################################################')
+
